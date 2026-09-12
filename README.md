@@ -1,16 +1,16 @@
 # Supplying Demand
 
-A two-way consulting workbench for AI infrastructure:
+A single-page cluster lab for AI infrastructure consulting. Inspect dated public cluster disclosures, make a hardware variant, and connect workload behavior to GPU servers, host resources, backend topology, north–south traffic and storage requirements.
 
-- Practice three fictional dense-language-model client cases: inference, adapter tuning, and full-parameter training.
-- Assess actual client requirements using guided discovery, transparent memory calculations, a component decision map, and a qualification memo.
-- Enter available compute, RoCE / InfiniBand / TCP fabric, storage and facility inventory to screen client archetypes and expose configuration gaps.
-
-Client assessments stay in browser memory. Export JSON to resume an assessment and Markdown to keep the recommendation, inputs, evidence, component rationale and references. Nothing is sent to an AI model. The app does not discover real buyers or promise measured performance.
+- Drag or click reference components onto the map. Select a component to explain or configure it in the adjacent inspector.
+- Follow prompt processing, token generation, training, checkpoint and model-loading paths.
+- Explore seven public records, including Meta H100/RoCE training, DeepSeek-V3, and H100/B300 MLPerf submissions. Unknown configuration fields remain unknown.
+- Inspect four pinned MLPerf runs, including their model, precision, software, system metadata, publication date and latency constraints.
+- Export/import version 2 scenario JSON, or download a Markdown qualification memo. Data stays in page memory until exported. No API keys or model calls are needed.
 
 ## Development
 
-Node 22.13+ for the starter; Node 24 recommended for the TypeScript test runner.
+Node 24 recommended.
 
 ```sh
 npm install
@@ -20,14 +20,24 @@ npx tsc --noEmit
 npm run build
 ```
 
-## Method
+The root page renders `components/cluster-lab.tsx`. Domain calculations and validation live in `lib/cluster-lab.ts`; curated disclosures are in `lib/cluster-evidence.ts`. The preceding guided workbench remains in source for reference but is no longer part of the page.
 
-All capacities use decimal GB / TB. Inference memory uses a full-attention KV-cache formula with editable architecture inputs. Training state assumes an explicitly configurable byte count per trainable parameter; activations, temporary storage and planning reserve are input assumptions. Aggregate GPU memory is not automatically shared or evenly sharded. Reported GPU lower bounds check memory only. Topology checks distinguish a local group, a same-leaf/rail group, and a cross-leaf path. Uplink oversubscription never becomes a fabricated application-performance multiplier.
+## Evidence and refresh
 
-CPU throughput, storage performance, scheduling, model quality, commercial viability and actual latency require workload-specific measurements. Scope currently excludes detailed MoE, multimodal and advanced cache/sharding simulation. Hardware quantities are an inventory screen, not a validated deployable bill of materials.
+`scripts/refresh-evidence.py` retrieves official MLCommons summary files, system metadata and valid performance logs from pinned Git revisions. Run `python3 scripts/refresh-evidence.py` to regenerate `data/mlperf-snapshot.json`. Updating versions requires reviewing the submissions and editing the selected source definitions. The snapshots are reviewed as of September 12, 2026; they are not live telemetry or available-for-sale inventory.
 
-Sources are included within the app and exported memo. The reference compute fields are based on the NVIDIA DGX B300 specification; the fabric, storage and client examples are illustrative assumptions.
+H100 Llama 2 70B data comes from MLPerf Inference v5.0 at FP8, and B300 from v6.0 at FP4. Their bars are not a controlled GPU-only comparison or evidence of scale-out RoCE performance. B300 submission metadata lists 270 GB per GPU, while the nominal DGX reference palette uses 288 GB. Both remain explicitly labeled.
+
+## Calculation scope
+
+All GB and TB are decimal. Dense inference memory uses explicit weight and full-attention KV-cache architecture assumptions. Dense full training assumes 16 bytes per parameter for state, plus an editable activation/scratch allowance and reserve. Aggregate GPU memory is a lower-bound screen, not a guarantee of per-GPU fit or predicted throughput.
+
+A missing spine blocks only an explicitly cross-leaf, cross-server workload group in this simplified topology. Uplink oversubscription does not become a fabricated application slowdown. The reference server has eight locally connected GPUs. Placement, rails, routing, congestion control and failures need deployment-specific validation.
+
+Frontend capacity budgets simultaneous client and storage traffic using the larger full-duplex direction and an explicit utilization allowance. Storage requirements include model loading, dataset reads, durable checkpoint writes, data retention and protection overhead. CPU, drive, metadata and software performance require measurements. This is not a deployable bill of materials or a procurement guarantee.
 
 ## Verification
 
-Domain tests cover memory formulas, adapter versus full training state, topology connectivity, oversubscription, missing inventory, reverse matching and report content. The browser's read-only assessment tool is exposed when WebMCP is supported; it rejects unexpected arguments. No broad browser UI or responsive testing was requested.
+Domain tests cover memory formulas, inventory bounds, cross-leaf connectivity, full-duplex traffic sizing, storage retention and durability targets, validation, and benchmark provenance. Existing consulting-domain tests are also retained.
+
+When supported, the browser exposes `read_cluster_mapping` and `configure_cluster_scenario` through WebMCP. Configuration validates complete scenario objects before updating the visible page; rejected inputs leave state unchanged.
