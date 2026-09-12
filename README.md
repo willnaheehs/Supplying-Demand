@@ -2,6 +2,7 @@
 
 A single-page cluster lab for AI infrastructure consulting. Inspect dated public cluster disclosures, make a hardware variant, and connect workload behavior to GPU servers, host resources, backend topology, north–south traffic and storage requirements.
 
+- Read a plain-English account of each cluster’s hardware, workload, measured result and consulting implications above the map. Scenario descriptions update with the inputs and remain explicitly unmeasured.
 - Drag or click reference components onto the map. Select a component to explain or configure it in the adjacent inspector.
 - Follow prompt processing, token generation, training, checkpoint and model-loading paths.
 - Explore seven public records, including Meta H100/RoCE training, DeepSeek-V3, and H100/B300 MLPerf submissions. Unknown configuration fields remain unknown.

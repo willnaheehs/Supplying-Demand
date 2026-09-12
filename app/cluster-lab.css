@@ -1614,3 +1614,75 @@
   font-size: 9px;
   color: #829990;
 }
+
+.cluster-description {
+  background: #fff;
+  border: 1px solid #cfdddf;
+  border-radius: 9px;
+  padding: 24px 28px;
+  margin: 0 0 20px;
+}
+.description-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+.cluster-app .description-heading h2 {
+  font-size: 1.125rem;
+  letter-spacing: -0.25px;
+  margin: 0;
+  color: #254e4a;
+}
+.description-heading > span {
+  font-size: 0.75rem;
+  color: #768b93;
+  flex: none;
+}
+.cluster-app .cluster-description > p {
+  font-size: 1rem;
+  line-height: 1.75;
+  max-width: 110ch;
+  color: #385762;
+  margin: 0 0 13px;
+  overflow-wrap: anywhere;
+}
+.cluster-description .lab-source {
+  font-size: 0.8125rem;
+  margin-left: 3px;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.cluster-app .cluster-description > p.description-meaning {
+  margin: 18px 0 0;
+  padding: 13px 0 0;
+  border-top: 1px solid #e3ebea;
+  color: #5c756f;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+@media (max-width: 800px) {
+  .cluster-description {
+    padding: 19px 20px;
+  }
+  .description-heading {
+    display: block;
+  }
+  .description-heading > span {
+    display: block;
+    margin-top: 7px;
+  }
+}
+@media (max-width: 520px) {
+  .cluster-description {
+    padding: 17px;
+  }
+  .cluster-app .description-heading h2 {
+    font-size: 1rem;
+  }
+  .cluster-app .cluster-description > p {
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+}

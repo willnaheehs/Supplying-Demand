@@ -51,6 +51,7 @@ import {
   type Phase,
 } from '@/lib/cluster-lab';
 import { fmt } from '@/lib/consulting';
+import { describeScenario } from '@/lib/cluster-description';
 
 type Part =
   | 'workload'
@@ -195,9 +196,9 @@ const teaching: Record<
 export default function ClusterLab() {
   const [scenario, setScenario] = useState<Scenario>({ ...initialScenario });
   const [recordId, setRecordId] = useState('meta-roce');
-  const [observed, setObserved] = useState(false);
+  const [observed, setObserved] = useState(true);
   const [part, setPart] = useState<Part>('compute');
-  const [phase, setPhase] = useState<Phase>('decode');
+  const [phase, setPhase] = useState<Phase>('train');
   const [inspector, setInspector] = useState('explain');
   const [benchmarkScenario, setBenchmarkScenario] = useState('Server');
   const [drag, setDrag] = useState<string | null>(null);
@@ -211,6 +212,12 @@ export default function ClusterLab() {
   const record = clusterRecords.find((r) => r.id === recordId)!;
   const a = analyzeScenario(scenario);
   const phaseData = phaseInfo[phase];
+  const description = observed
+    ? record.description
+    : describeScenario(scenario);
+  const descriptionHardwareSource = record.benchmarkId
+    ? benchmarks.find((b) => b.id === record.benchmarkId)!.systemUrl
+    : record.source;
   const selectPart = (p: Part) => {
     setPart(p);
     setInspector(observed ? 'data' : 'explain');
@@ -352,7 +359,7 @@ export default function ClusterLab() {
   const exportMemo = () =>
     save(
       'supplying-demand-mapping.md',
-      `# ${clientName}\n\nMode: ${observed ? 'Published source view' : 'Unmeasured what-if scenario'}\n\n## Source record\n${record.name} — ${record.date}\n${record.outcome}\n${record.scope}\n${record.source}\n\n## Scenario inputs\n${JSON.stringify(scenario, null, 2)}\n\n## Calculated requirements (scenario only)\nMemory ${fmt(a.memory.total)} GB across ${scenario.group} GPUs; capacity ${fmt(a.capacity)} GB. Memory lower bound ${a.minGPUs} GPUs; not a performance recommendation.\nOutput target ${fmt(a.requiredTps)} tokens/s (not predicted).\nRead ${fmt(a.readTarget)} GB/s; durable write ${fmt(a.writeTarget)} GB/s.\nFrontend ingress ${fmt(a.ingress)} GB/s; egress ${fmt(a.egress)} GB/s; planned link floor ${fmt(a.nsRequiredGbps)} Gb/s at ${fmt(scenario.utilization * 100)}% utilization.\nRetained storage ${fmt(a.storageRequiredTB)} TB; configured usable ${fmt(a.usableTB)} TB.\n\n## Gaps\n${a.issues.join('\n') || 'No listed arithmetic blockers; actual workload performance remains unverified.'}\n\n## Qualification\n${Object.entries(
+      `# ${clientName}\n\nMode: ${observed ? 'Published source view' : 'Unmeasured what-if scenario'}\n\n## In plain English\n${description.hardware}\n\n${description.result}\n\n${description.meaning}\n\n## Source record\n${record.name} — ${record.date}\n${record.outcome}\n${record.scope}\n${record.source}\n\n## Scenario inputs\n${JSON.stringify(scenario, null, 2)}\n\n## Calculated requirements (scenario only)\nMemory ${fmt(a.memory.total)} GB across ${scenario.group} GPUs; capacity ${fmt(a.capacity)} GB. Memory lower bound ${a.minGPUs} GPUs; not a performance recommendation.\nOutput target ${fmt(a.requiredTps)} tokens/s (not predicted).\nRead ${fmt(a.readTarget)} GB/s; durable write ${fmt(a.writeTarget)} GB/s.\nFrontend ingress ${fmt(a.ingress)} GB/s; egress ${fmt(a.egress)} GB/s; planned link floor ${fmt(a.nsRequiredGbps)} Gb/s at ${fmt(scenario.utilization * 100)}% utilization.\nRetained storage ${fmt(a.storageRequiredTB)} TB; configured usable ${fmt(a.usableTB)} TB.\n\n## Gaps\n${a.issues.join('\n') || 'No listed arithmetic blockers; actual workload performance remains unverified.'}\n\n## Qualification\n${Object.entries(
         teaching,
       )
         .map(([k, v]) => `${partNames[k as Part]}: ${v.verify}\n${v.source}`)
@@ -604,6 +611,9 @@ export default function ClusterLab() {
                 setRecordId(r.id);
                 setObserved(true);
                 setInspector('data');
+                setPhase(
+                  r.kind === 'Benchmark submission' ? 'decode' : 'train',
+                );
                 setNotice('');
               }}
             >
@@ -623,6 +633,32 @@ export default function ClusterLab() {
             </button>
           ))}
         </div>
+        <article
+          className="cluster-description"
+          aria-labelledby="description-title"
+        >
+          <div className="description-heading">
+            <h2 id="description-title">
+              {observed ? record.name : clientName} — in plain English
+            </h2>
+            <span>
+              {observed
+                ? `Reported ${record.date}`
+                : 'Planning scenario · unmeasured'}
+            </span>
+          </div>
+          <p>
+            {description.hardware}
+            {observed && (
+              <> {sourceLink(descriptionHardwareSource, 'Hardware source')}</>
+            )}
+          </p>
+          <p>
+            {description.result}
+            {observed && <> {sourceLink(record.source, 'Result source')}</>}
+          </p>
+          <p className="description-meaning">{description.meaning}</p>
+        </article>
         <div className="lab-toolbar">
           <div>
             <b>{observed ? record.name : clientName}</b>

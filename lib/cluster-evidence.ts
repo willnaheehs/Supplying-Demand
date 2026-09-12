@@ -5,6 +5,11 @@ export type EvidenceFact = {
   source: string;
   status?: 'reported' | 'derived';
 };
+export type ClusterDescription = {
+  hardware: string;
+  result: string;
+  meaning: string;
+};
 export type ClusterRecord = {
   id: string;
   name: string;
@@ -23,6 +28,7 @@ export type ClusterRecord = {
   source: string;
   lesson: string;
   benchmarkId?: string;
+  description: ClusterDescription;
 };
 const meta =
   'https://engineering.fb.com/2024/03/12/data-center-engineering/building-metas-genai-infrastructure/';
@@ -37,6 +43,14 @@ export const benchmarks = snapshot;
 export const clusterRecords: ClusterRecord[] = [
   {
     id: 'meta-roce',
+    description: {
+      hardware:
+        'Meta’s March 2024 cluster contains 24,576 H100 GPUs in Grand Teton servers. A RoCE Ethernet fabric connects 400 Gb/s endpoints using Arista 7800, Wedge400 and Minipack2 switches. Tectonic and Hammerspace NFS storage run on YV3 Sierra Point servers with E1.S SSDs.',
+      result:
+        'Meta reported training Llama 3 on this system without network bottlenecks after jointly engineering its network, software and model. The disclosure does not give training tokens per second.',
+      meaning:
+        'For a consultant, this establishes that H100 with RoCE can support large-model training. It does not establish a client’s required server count or storage throughput; those need workload measurements.',
+    },
     name: 'Meta · RoCE cluster',
     operator: 'Meta',
     kind: 'Production disclosure',
@@ -85,6 +99,14 @@ export const clusterRecords: ClusterRecord[] = [
   },
   {
     id: 'meta-ib',
+    description: {
+      hardware:
+        'This companion cluster has 24,576 H100 GPUs in Grand Teton servers, Quantum-2 InfiniBand connecting 400 Gb/s endpoints, and the same published Tectonic/Hammerspace storage approach.',
+      result:
+        'Meta reported successful large generative-AI workloads on both clusters, but no matched application-speed comparison.',
+      meaning:
+        'This supports InfiniBand as a demonstrated training option. The disclosure cannot tell you how much faster it would be than RoCE for your client.',
+    },
     name: 'Meta · InfiniBand cluster',
     operator: 'Meta',
     kind: 'Production disclosure',
@@ -123,6 +145,14 @@ export const clusterRecords: ClusterRecord[] = [
   },
   {
     id: 'deepseek',
+    description: {
+      hardware:
+        'DeepSeek-V3 trained on 2,048 H800 GPUs, with eight GPUs per server: 256 servers by calculation. NVLink and NVSwitch connect GPUs within each server; InfiniBand connects servers. The report does not provide a complete CPU, RAM, storage or north–south network configuration.',
+      result:
+        'The workload was a mixture-of-experts model with 671 billion total parameters and 37 billion active per token. Using FP8 mixed-precision training, DeepSeek reported 14.8 trillion pretraining tokens in 2.664 million H800 GPU-hours. The reported training stages together consumed 2.788 million GPU-hours, excluding earlier research and ablations.',
+      meaning:
+        'For a consultant, GPU-hours describe resources consumed by this particular training process. The result depends on the sparse model and its optimized software; it is not a sizing rule for a dense 671-billion-parameter model.',
+    },
     name: 'DeepSeek · V3 training',
     operator: 'DeepSeek',
     kind: 'Production disclosure',
@@ -168,6 +198,14 @@ export const clusterRecords: ClusterRecord[] = [
   },
   {
     id: 'meta-129k',
+    description: {
+      hardware:
+        'Meta reported assembling one cluster of roughly 129,000 H100 GPUs across five data-center buildings. This disclosure does not specify its server count, per-server CPU or RAM, exact network topology, or storage configuration.',
+      result:
+        'The reported achievement is the scale of the cluster itself. The article does not attach a particular model run, training rate, inference latency or GPU-utilization measurement to this system.',
+      meaning:
+        'For a consultant, this is a reference for infrastructure scale. There is not enough published information here to judge workload effectiveness or reproduce the configuration.',
+    },
     name: 'Meta · 129k H100 system',
     operator: 'Meta',
     kind: 'Production disclosure',
@@ -222,6 +260,11 @@ export const clusterRecords: ClusterRecord[] = [
       lesson:
         'Keep model, precision, software, request distribution and latency targets attached to every performance number.',
       benchmarkId: b.id,
+      description: {
+        hardware: `This NVIDIA benchmark used one server with eight ${gpu} GPUs, each listed with ${s.accelerator_memory_capacity} of GPU memory. Its submitted configuration lists ${s.host_processors_per_node} ${s.host_processor_model_name} CPUs, ${s.host_memory_capacity} of host RAM, and ${s.host_storage_capacity} of storage. The GPUs communicate locally over NVLink. The NIC inventory is listed as “${s.host_network_card_count}”; this one-server run does not isolate an external fabric’s contribution.`,
+        result: `It served Llama 2 70B using ${b.precision.toUpperCase()} weights in MLPerf Inference ${b.version} with the OpenOrca dataset. The measured result was ${b.tokensPerSecond.toLocaleString('en-US')} output tokens per second across the system. The 99th-percentile time to the first token was ${Math.round(b.ttftP99Ms || 0).toLocaleString('en-US')} ms; time per subsequent output token was ${Math.round(b.tpotP99Ms || 0)} ms. The benchmark limits were 2,000 ms and 200 ms respectively.`,
+        meaning: `For a consultant, this is a measured throughput-and-latency reference for these exact test conditions. It does not promise the same rate for a different model, context length or service target. The H100 and B300 records also use different precision and software, so their difference cannot be attributed to the GPU alone.${gpu === 'B300' ? ' The submitted 270 GB memory figure is retained here; the reference palette separately uses the nominal 288 GB specification.' : ''}`,
+      },
       facts: [
         {
           label: 'GPU memory',
@@ -259,6 +302,14 @@ export const clusterRecords: ClusterRecord[] = [
   }),
   {
     id: 'metaroce-2026',
+    description: {
+      hardware:
+        'Meta and AMD tested a 64-node AMD GPU cluster with Pensando programmable network cards. The experiment compared MetaRoCE with RoCEv2 for GPU communication; the GPU model, CPU, RAM and storage configuration are not specified.',
+      result:
+        'The workload was RCCL all-reduce and all-to-all: operations that combine or exchange data among GPUs. Meta reported retaining about 86% throughput at 1% packet loss, alongside tests of four- and eight-plane network topologies.',
+      meaning:
+        'For a consultant, this is evidence about network behavior when packets are lost. It does not measure model training speed or inference tokens per second, and MetaRoCE is a distinct transport design from conventional RoCEv2.',
+    },
     name: 'Meta · RDMA experiment',
     operator: 'Meta + AMD',
     kind: 'Network experiment',
