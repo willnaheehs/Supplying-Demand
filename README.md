@@ -2,10 +2,11 @@
 
 A single-page consulting tool for matching startup workloads to data-center cluster offers, built around an always-visible educational hardware map. Inspect dated public cluster disclosures, make a hardware variant, and connect workload behavior to GPU servers, host resources, backend topology, north–south traffic and storage requirements.
 
-- Read a plain-English account of each cluster’s hardware, workload, measured result and consulting implications below the map. Scenario descriptions update with the inputs and remain explicitly unmeasured.
+- Read an account of each cluster’s hardware, workload, measured result and consulting implications below the map. Scenario descriptions update with the inputs and remain explicitly unmeasured.
+- Start with interactive inference, batch inference or training. Choose a model and numeric targets to find matching evidence. Inference matches retain exact benchmark scenario, precision, software and request distribution; training disclosures are labeled reported, not measured client recommendations. Missing evidence never becomes an invented configuration.
 - Drag or click reference components onto the map. Select a component to explain or configure it in the adjacent inspector.
 - Follow prompt processing, token generation, training, checkpoint and model-loading paths.
-- Explore seven public records, including Meta H100/RoCE training, DeepSeek-V3, and H100/B300 MLPerf submissions. Unknown configuration fields remain unknown.
+- Explore seven published systems and experiments through nine records (including separate Server and Offline submissions), including Meta H100/RoCE training, DeepSeek-V3, and H100/B300 MLPerf submissions. Unknown configuration fields remain unknown.
 - Inspect four pinned MLPerf runs, including their model, precision, software, system metadata, publication date and latency constraints.
 - Export/import version 2 scenario JSON, or download a Markdown qualification memo. Data stays in page memory until exported. No API keys or model calls are needed.
 
@@ -13,7 +14,7 @@ A single-page consulting tool for matching startup workloads to data-center clus
 
 The optional “Compare offers for a client” section is closed by default below the map, descriptions and evidence. It keeps one client workload fixed while evaluating up to twelve offers. Start with an illustrative dense inference, MoE inference, or dense full-training case, then enter actual model revisions, engines, request shapes, allocation configurations and provider terms. Example allocations have no implied price or availability.
 
-The readout distinguishes configuration blockers, missing or stale benchmarks, missed targets, and recorded targets met. Availability, region, start date and provider references remain separate supply checks. CPU, GPU memory/compute, local links, backend fabrics, storage and frontend networking each have a plain-English causal explanation and an acceptance test to request. Exploring an offer on the map creates a separate copy and returns to the canvas.
+The readout distinguishes configuration blockers, missing or stale benchmarks, missed targets, and recorded targets met. Availability, region, start date and provider references remain separate supply checks. CPU, GPU memory/compute, local links, backend fabrics, storage and frontend networking each have a causal explanation and an acceptance test to request. Exploring an offer on the map creates a separate copy and returns to the canvas.
 
 Record a dated workload run against the entire offered allocation. Rate, latency and quality must pass together before inference cost is calculated. Changing tested model/configuration inputs marks the run stale. Quote, business deadline and target changes re-evaluate the existing result. All entered evidence remains user-provided, not independently verified. Import/export preserves complete comparisons and captured evidence; a Markdown client brief captures assumptions and open questions.
 
@@ -21,7 +22,7 @@ Inference quote cost per million output tokens uses the entire allocation’s ho
 
 MoE inference memory includes **all resident weights**, an explicit cache allowance, scratch and reserve. Active parameters do not replace resident parameters. MoE training, expert routing performance and separated prefill/decode pools are not simulated. The DeepSeek report is used to explain why software, architecture and placement matter; its results do not become a generic prediction.
 
-The visual map, component palette and workload paths are the main view. Longer descriptions follow the outcomes; source calculations and detailed offer comparison expand only when needed.
+The workload selector, visual map, component palette and workload paths are the main view. Click a component for a workload-specific explanation and the limits of its supporting evidence. Source phases stay aligned with training or inference, and training variants preserve their workload type. Longer descriptions follow the outcomes; source calculations and detailed offer comparison expand only when needed.
 
 ## Development
 

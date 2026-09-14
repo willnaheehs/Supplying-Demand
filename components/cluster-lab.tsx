@@ -53,6 +53,14 @@ import {
 import { fmt } from '@/lib/consulting';
 import { describeScenario } from '@/lib/cluster-description';
 import MatchingDesk from '@/components/matching-desk';
+import WorkloadFinder from '@/components/workload-finder';
+import { explainRecord } from '@/lib/record-explanation';
+import {
+  sourcePhaseAllowed,
+  defaultWorkloadRequest,
+  type WorkloadRequest,
+} from '@/lib/workload-evidence';
+import { sourceVariant } from '@/lib/source-variant';
 import '@/app/matching-desk.css';
 
 type Part =
@@ -199,10 +207,13 @@ export default function ClusterLab() {
   const labRef = useRef<HTMLDivElement>(null);
   const comparisonRef = useRef<HTMLDetailsElement>(null);
   const [scenario, setScenario] = useState<Scenario>({ ...initialScenario });
-  const [recordId, setRecordId] = useState('meta-roce');
+  const [recordId, setRecordId] = useState('mlperf-h100');
+  const [workloadTarget, setWorkloadTarget] = useState<WorkloadRequest | null>(
+    defaultWorkloadRequest,
+  );
   const [observed, setObserved] = useState(true);
   const [part, setPart] = useState<Part>('compute');
-  const [phase, setPhase] = useState<Phase>('train');
+  const [phase, setPhase] = useState<Phase>('decode');
   const [inspector, setInspector] = useState('explain');
   const [benchmarkScenario, setBenchmarkScenario] = useState('Server');
   const [drag, setDrag] = useState<string | null>(null);
@@ -214,6 +225,9 @@ export default function ClusterLab() {
   const fileRef = useRef<HTMLInputElement>(null);
   const dataRef = useRef<HTMLElement>(null);
   const record = clusterRecords.find((r) => r.id === recordId)!;
+  const recordBenchmark = benchmarks.find((b) => b.id === record.benchmarkId);
+  const singleNodeEvidence = observed && record.nodeCount === 1;
+  const recordExplanation = explainRecord(record, part);
   const a = analyzeScenario(scenario);
   const phaseData = phaseInfo[phase];
   const description = observed
@@ -224,37 +238,36 @@ export default function ClusterLab() {
     : record.source;
   const selectPart = (p: Part) => {
     setPart(p);
-    setInspector(observed ? 'data' : 'explain');
+    setInspector('explain');
+  };
+  const selectRecord = (id: string, target?: WorkloadRequest) => {
+    const selected = clusterRecords.find((r) => r.id === id);
+    if (!selected) return;
+    setRecordId(id);
+    setWorkloadTarget(target || null);
+    setObserved(true);
+    setInspector('explain');
+    setPart('compute');
+    setPhase(selected.workloadKind === 'inference' ? 'decode' : 'train');
+    const b = benchmarks.find((b) => b.id === selected.benchmarkId);
+    if (b) setBenchmarkScenario(b.scenario);
+    setNotice('');
   };
   const startVariant = (r: ClusterRecord = record) => {
     const b = benchmarks.find((b) => b.id === r.benchmarkId);
-    const gpu = r.gpu === 'B300' ? 'B300' : r.gpu === 'H200' ? 'H200' : 'H100';
-    const s = {
-      ...initialScenario,
-      gpu,
-      hbm: b
-        ? parseFloat(b.systemMetadata.accelerator_memory_capacity)
-        : gpuSpecs[gpu].hbm,
-      nodes: b ? b.nodes : 2,
-      group: 8,
-      cores: b
-        ? b.systemMetadata.host_processors_per_node *
-          b.systemMetadata.host_processor_core_count
-        : gpuSpecs[gpu].cores,
-      linkGbps: gpuSpecs[gpu].link,
-      fabric: r.fabric.includes('InfiniBand') ? 'ib' : 'roce',
-      weightBytes: b ? (b.precision === 'fp4' ? 0.5 : 1) : 2,
-    } as Scenario;
+    const s = sourceVariant(r, b, workloadTarget);
     setScenario(s);
     setObserved(false);
     setBaseline(r.name);
     setClientName('Variant · ' + r.name);
-    setPhase('decode');
+    setPhase(s.workload === 'training' ? 'train' : 'decode');
     setInspector('configure');
     setNotice(
       b
         ? 'Compute fields come from this submission. Workload, frontend and storage assumptions remain editable; its measured throughput does not transfer automatically.'
-        : 'Created a two-server reference scenario inspired by the source. Undisclosed fields use labeled planning assumptions; this is not a reproduction of the production cluster.',
+        : r.id === 'deepseek'
+          ? 'Created an unmeasured dense-model training scenario on reference H100s. This calculator cannot reproduce DeepSeek-V3’s MoE model or H800 result.'
+          : `Created a two-server ${s.workload} planning scenario. Model size and undisclosed fields are assumptions; this does not reproduce the production cluster.`,
     );
     return s;
   };
@@ -363,7 +376,7 @@ export default function ClusterLab() {
   const exportMemo = () =>
     save(
       'supplying-demand-mapping.md',
-      `# ${clientName}\n\nMode: ${observed ? 'Published source view' : 'Unmeasured what-if scenario'}\n\n## In plain English\n${description.hardware}\n\n${description.result}\n\n${description.meaning}\n\n## Source record\n${record.name} — ${record.date}\n${record.outcome}\n${record.scope}\n${record.source}\n\n## Scenario inputs\n${JSON.stringify(scenario, null, 2)}\n\n## Calculated requirements (scenario only)\nMemory ${fmt(a.memory.total)} GB across ${scenario.group} GPUs; capacity ${fmt(a.capacity)} GB. Memory lower bound ${a.minGPUs} GPUs; not a performance recommendation.\nOutput target ${fmt(a.requiredTps)} tokens/s (not predicted).\nRead ${fmt(a.readTarget)} GB/s; durable write ${fmt(a.writeTarget)} GB/s.\nFrontend ingress ${fmt(a.ingress)} GB/s; egress ${fmt(a.egress)} GB/s; planned link floor ${fmt(a.nsRequiredGbps)} Gb/s at ${fmt(scenario.utilization * 100)}% utilization.\nRetained storage ${fmt(a.storageRequiredTB)} TB; configured usable ${fmt(a.usableTB)} TB.\n\n## Gaps\n${a.issues.join('\n') || 'No listed arithmetic blockers; actual workload performance remains unverified.'}\n\n## Qualification\n${Object.entries(
+      `# ${clientName}\n\nMode: ${observed ? 'Published source view' : 'Unmeasured what-if scenario'}\n\n## Configuration and workload\n${description.hardware}\n\n${description.result}\n\n${description.meaning}\n\n## Source record\n${record.name} — ${record.date}\n${record.outcome}\n${record.scope}\n${record.source}\n\n## Scenario inputs\n${JSON.stringify(scenario, null, 2)}\n\n## Calculated requirements (scenario only)\nMemory ${fmt(a.memory.total)} GB across ${scenario.group} GPUs; capacity ${fmt(a.capacity)} GB. Memory lower bound ${a.minGPUs} GPUs; not a performance recommendation.\nOutput target ${fmt(a.requiredTps)} tokens/s (not predicted).\nRead ${fmt(a.readTarget)} GB/s; durable write ${fmt(a.writeTarget)} GB/s.\nFrontend ingress ${fmt(a.ingress)} GB/s; egress ${fmt(a.egress)} GB/s; planned link floor ${fmt(a.nsRequiredGbps)} Gb/s at ${fmt(scenario.utilization * 100)}% utilization.\nRetained storage ${fmt(a.storageRequiredTB)} TB; configured usable ${fmt(a.usableTB)} TB.\n\n## Gaps\n${a.issues.join('\n') || 'No listed arithmetic blockers; actual workload performance remains unverified.'}\n\n## Qualification\n${Object.entries(
         teaching,
       )
         .map(([k, v]) => `${partNames[k as Part]}: ${v.verify}\n${v.source}`)
@@ -566,10 +579,9 @@ export default function ClusterLab() {
       <main className="cluster-app">
         <div className="lab-title">
           <div>
-            <h1>Map a cluster to the work it can do.</h1>
+            <h1>Start with the workload. See the hardware.</h1>
             <p>
-              Drag in hardware. Follow the workload. Click a component to learn
-              what it changes.
+              Find a tested reference, then explore why each component matters.
             </p>
           </div>
           <button
@@ -594,10 +606,11 @@ export default function ClusterLab() {
           <div className="lc-guide">
             <b>One page, two directions.</b>
             <span>
-              Click a source card to inspect a real disclosure. Click “Explore a
-              variant” to create a scenario. Drag components onto their matching
-              block, or click a palette item. Change the workload and follow the
-              colored paths. Open “Data” below for exact benchmark conditions.
+              Choose a workload and show a tested setup. Click any part of the
+              map to learn why it matters. Use “Explore a variant” to change it.
+              Drag components onto their matching block, or click a palette
+              item. Change the workload and follow the colored paths. Open
+              “Data” below for exact benchmark conditions.
             </span>
             <button
               onClick={() => setShowGuide(false)}
@@ -607,40 +620,10 @@ export default function ClusterLab() {
             </button>
           </div>
         )}
-        <div
-          className="evidence-strip"
-          aria-label="Documented cluster examples"
-        >
-          {clusterRecords.map((r) => (
-            <button
-              key={r.id}
-              className={observed && r.id === recordId ? 'active' : ''}
-              onClick={() => {
-                setRecordId(r.id);
-                setObserved(true);
-                setInspector('data');
-                setPhase(
-                  r.kind === 'Benchmark submission' ? 'decode' : 'train',
-                );
-                setNotice('');
-              }}
-            >
-              <span>
-                {r.kind.toUpperCase()} · {r.date}
-              </span>
-              <strong>
-                {r.name}
-                <ArrowUpRight size={15} />
-              </strong>
-              <small>
-                {r.gpuCount
-                  ? fmt(r.gpuCount, 0) + ' GPUs'
-                  : r.nodeCount + ' nodes'}{' '}
-                · {r.model}
-              </small>
-            </button>
-          ))}
-        </div>
+        <WorkloadFinder
+          activeRecordId={observed ? recordId : null}
+          onSelect={selectRecord}
+        />
         <div className="lab-toolbar" ref={labRef}>
           <div>
             <b>{observed ? record.name : clientName}</b>
@@ -747,6 +730,14 @@ export default function ClusterLab() {
                   key={p}
                   className={phase === p ? 'active' : ''}
                   onClick={() => selectPhase(p)}
+                  disabled={
+                    observed && !sourcePhaseAllowed(record.workloadKind, p)
+                  }
+                  title={
+                    observed && !sourcePhaseAllowed(record.workloadKind, p)
+                      ? `This source reports ${record.workloadKind}, not this phase. Explore a variant to change the workload.`
+                      : undefined
+                  }
                 >
                   {phaseInfo[p].label}
                 </button>
@@ -780,11 +771,13 @@ export default function ClusterLab() {
                   d="M119 370 V278"
                 />
                 <path
-                  className={`path tensor-path ${(phase === 'train' || phase === 'prefill' || phase === 'decode') && (observed || a.crossNode) ? 'lit' : ''}`}
+                  style={singleNodeEvidence ? { display: 'none' } : undefined}
+                  className={`path tensor-path ${(phase === 'train' || phase === 'prefill' || phase === 'decode') && (observed ? !singleNodeEvidence : a.crossNode) ? 'lit' : ''}`}
                   d="M497 229 H536"
                 />
                 <path
-                  className={`path tensor-path ${(phase === 'train' || phase === 'prefill' || phase === 'decode') && (observed || a.crossNode) ? 'lit' : ''}`}
+                  style={singleNodeEvidence ? { display: 'none' } : undefined}
+                  className={`path tensor-path ${(phase === 'train' || phase === 'prefill' || phase === 'decode') && (observed ? !singleNodeEvidence : a.crossNode) ? 'lit' : ''}`}
                   d="M616 291 V370"
                 />
                 <path className="path ops-path" d="M377 420 V388" />
@@ -849,7 +842,11 @@ export default function ClusterLab() {
                 <div className="node-title">
                   <Cpu size={17} />
                   <span>
-                    {observed ? 'Reported compute' : 'GPU server group'}
+                    {observed
+                      ? recordBenchmark
+                        ? 'Tested GPU server'
+                        : 'Reported compute'
+                      : 'GPU server group'}
                   </span>
                   <SlidersHorizontal size={12} />
                 </div>
@@ -862,18 +859,36 @@ export default function ClusterLab() {
                 </strong>
                 {observed ? (
                   <>
-                    <p className="node-sub">{record.gpu}</p>
-                    <div className="reported-compute">
+                    {recordBenchmark ? (
+                      <>
+                        <div className="gpu-grid">
+                          {Array.from({ length: 8 }, (_, n) => (
+                            <i key={n}>{record.gpu}</i>
+                          ))}
+                        </div>
+                        <small>
+                          {
+                            recordBenchmark.systemMetadata
+                              .accelerator_memory_capacity
+                          }{' '}
+                          / GPU · {recordBenchmark.precision.toUpperCase()}{' '}
+                          weights
+                        </small>
+                      </>
+                    ) : (
+                      <p className="node-sub">{record.gpu}</p>
+                    )}
+                    <div
+                      className={`reported-compute ${recordBenchmark ? 'benchmark-compute' : ''}`}
+                    >
                       <span>
                         {record.nodeCount
                           ? `${fmt(record.nodeCount, 0)} nodes${record.id === 'deepseek' ? ' · derived count' : ''}`
                           : 'Node count not disclosed'}
                       </span>
-                      <span>
-                        {record.kind === 'Benchmark submission'
-                          ? 'Submission-specific configuration'
-                          : 'Aggregate cluster · not a server diagram'}
-                      </span>
+                      {!recordBenchmark && (
+                        <span>Aggregate cluster · not a server diagram</span>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -901,7 +916,9 @@ export default function ClusterLab() {
                 )}
                 <div className="host-row">
                   {observed
-                    ? 'Click for CPU, RAM and source fields'
+                    ? recordBenchmark
+                      ? `${recordBenchmark.systemMetadata.host_processors_per_node * recordBenchmark.systemMetadata.host_processor_core_count} CPU cores · ${recordBenchmark.systemMetadata.host_memory_capacity} RAM`
+                      : 'Click for CPU, RAM and source fields'
                     : `${scenario.cores} CPU cores · ${fmt(scenario.ramGB)} GB RAM / server`}
                 </div>
               </Node>
@@ -911,26 +928,34 @@ export default function ClusterLab() {
               >
                 <div className="node-title">
                   <Network size={16} />
-                  <span>East–west</span>
+                  <span>
+                    {singleNodeEvidence ? 'Within server' : 'East–west'}
+                  </span>
                 </div>
                 <strong>
                   {observed
-                    ? record.fabric
+                    ? singleNodeEvidence
+                      ? 'NVLink GPU connections'
+                      : record.fabric
                     : scenario.fabric === 'roce'
                       ? 'RoCE Ethernet'
                       : 'InfiniBand'}
                 </strong>
                 <small>
                   {observed
-                    ? 'See source for topology'
+                    ? singleNodeEvidence
+                      ? 'No inter-server model traffic in this run'
+                      : 'See source for topology'
                     : `${scenario.linkGbps} Gb/s endpoints`}
                 </small>
                 <div className="mini-topology">
-                  <i>Leaf</i>
+                  <i>{singleNodeEvidence ? 'GPU' : 'Leaf'}</i>
                   <em>↔</em>
                   <i className={!scenario.spine && !observed ? 'absent' : ''}>
                     {observed
-                      ? 'Fabric'
+                      ? singleNodeEvidence
+                        ? 'GPU'
+                        : 'Fabric'
                       : scenario.spine
                         ? 'Spine'
                         : 'No spine'}
@@ -940,13 +965,20 @@ export default function ClusterLab() {
               <Node id="storage">
                 <div className="node-title">
                   <HardDrive size={16} />
-                  <span>Shared storage</span>
+                  <span>
+                    {recordBenchmark && observed
+                      ? 'Submitted storage'
+                      : 'Shared storage'}
+                  </span>
                 </div>
                 <strong>
                   {observed
-                    ? record.id.startsWith('meta-') && record.id !== 'meta-129k'
-                      ? 'Tectonic + NFS'
-                      : 'Not fully disclosed'
+                    ? recordBenchmark
+                      ? recordBenchmark.systemMetadata.host_storage_capacity
+                      : record.id.startsWith('meta-') &&
+                          record.id !== 'meta-129k'
+                        ? 'Tectonic + NFS'
+                        : 'Not fully disclosed'
                     : `${scenario.storageNodes} storage servers`}
                 </strong>
                 <small>
@@ -955,10 +987,19 @@ export default function ClusterLab() {
                     : `${fmt(a.usableTB)} TB protected usable`}
                 </small>
                 <div className="storage-stack">
-                  <span>CPU</span>
-                  <span>RAM</span>
-                  <span>NIC</span>
-                  <span>SSD</span>
+                  {observed && recordBenchmark ? (
+                    <>
+                      <span>SSD</span>
+                      <span>CIFS</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>CPU</span>
+                      <span>RAM</span>
+                      <span>NIC</span>
+                      <span>SSD</span>
+                    </>
+                  )}
                 </div>
               </Node>
               <Node id="operations">
@@ -974,19 +1015,23 @@ export default function ClusterLab() {
                 <span className="ops-tags">PCIe / NUMA · BMC · cooling</span>
               </Node>
               <div
-                className={`second-group ${!observed && scenario.nodes === 1 ? 'not-present' : ''}`}
+                className={`second-group ${singleNodeEvidence || (!observed && scenario.nodes === 1) ? 'not-present' : ''}`}
               >
                 <Server size={17} />
                 <strong>
                   {observed
-                    ? 'Other endpoints'
+                    ? singleNodeEvidence
+                      ? 'One GPU server only'
+                      : 'Other endpoints'
                     : scenario.nodes > 1
                       ? 'Additional servers'
                       : 'One server only'}
                 </strong>
                 <small>
                   {observed
-                    ? 'Only when the source establishes them'
+                    ? singleNodeEvidence
+                      ? 'External fabric benefit not measured'
+                      : 'Only when the source establishes them'
                     : a.crossNode
                       ? 'This group crosses servers'
                       : 'Independent replicas or other jobs'}
@@ -1011,7 +1056,11 @@ export default function ClusterLab() {
               <b>{phaseData.result}</b>
               <span>
                 {observed
-                  ? 'Conceptual path only. The publication’s reported outcome is shown at right.'
+                  ? record.workloadKind === 'training'
+                    ? 'Training reference. This source does not measure inference performance.'
+                    : record.workloadKind === 'inference'
+                      ? 'Inference reference. The reported rate applies to the stated benchmark conditions.'
+                      : 'Conceptual path only. This source does not report model-level performance.'
                   : phaseData.path}
               </span>
             </div>
@@ -1019,7 +1068,7 @@ export default function ClusterLab() {
           <aside className="lab-inspector">
             <div className="inspector-title">
               <span style={{ background: color[part] }} />
-              <h2>{observed ? record.name : partNames[part]}</h2>
+              <h2>{partNames[part]}</h2>
             </div>
             <Tabs
               value={inspector}
@@ -1075,12 +1124,29 @@ export default function ClusterLab() {
                       : 'FOR THIS SCENARIO'}
                   </p>
                   <div className="lc-verdict">{brief}</div>
-                  <h3>Why it matters</h3>
-                  <p>{teaching[part].reason}</p>
-                  <h3>What would prove it?</h3>
-                  <p>{teaching[part].verify}</p>
-                  {sourceLink(teaching[part].source, 'Technical reference')}
-                  <div className="lab-note">{phaseData.detail}</div>
+                  <h3>Why this matters for the workload</h3>
+                  <p>
+                    {observed
+                      ? recordExplanation.reason
+                      : teaching[part].reason}
+                  </p>
+                  <h3>
+                    {observed
+                      ? 'What the evidence establishes'
+                      : 'What would prove it?'}
+                  </h3>
+                  <p>
+                    {observed
+                      ? recordExplanation.evidence
+                      : teaching[part].verify}
+                  </p>
+                  {sourceLink(
+                    observed ? recordExplanation.source : teaching[part].source,
+                    'Technical reference',
+                  )}
+                  {!observed && (
+                    <div className="lab-note">{phaseData.detail}</div>
+                  )}
                   {part === 'fabric' && !observed && (
                     <>
                       <Toggle
@@ -1566,7 +1632,7 @@ export default function ClusterLab() {
         >
           <div className="description-heading">
             <h2 id="description-title">
-              {observed ? record.name : clientName} — in plain English
+              {observed ? record.name : clientName}
             </h2>
             <span>
               {observed
@@ -1586,6 +1652,43 @@ export default function ClusterLab() {
           </p>
           <p className="description-meaning">{description.meaning}</p>
         </article>
+        <details className="source-library">
+          <summary>
+            Explore other published systems <ChevronDown size={16} />
+          </summary>
+          <div
+            className="evidence-strip"
+            aria-label="Documented cluster examples"
+          >
+            {clusterRecords.map((r) => (
+              <button
+                key={r.id}
+                className={observed && r.id === recordId ? 'active' : ''}
+                onClick={() => {
+                  selectRecord(r.id);
+                  labRef.current?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                  });
+                }}
+              >
+                <span>
+                  {r.kind.toUpperCase()} · {r.date}
+                </span>
+                <strong>
+                  {r.name}
+                  <ArrowUpRight size={15} />
+                </strong>
+                <small>
+                  {r.gpuCount
+                    ? fmt(r.gpuCount, 0) + ' GPUs'
+                    : r.nodeCount + ' nodes'}{' '}
+                  · {r.model}
+                </small>
+              </button>
+            ))}
+          </div>
+        </details>
         <section ref={dataRef} className="data-section">
           <button
             className="data-section-toggle"
@@ -1664,7 +1767,9 @@ export default function ClusterLab() {
                 <Info size={19} />
                 <p>
                   {benchmarkScenario === 'Server'
-                    ? `Your current target is ${fmt(scenario.targetTps)} output tokens/s at p99 TTFT ${fmt(scenario.ttftMs)} ms and TPOT ${fmt(scenario.tpotMs)} ms. The source runs use 2,000 / 200 ms benchmark limits and OpenOrca. Matching parameter count alone is insufficient.`
+                    ? observed
+                      ? 'Server results pair aggregate throughput with p99 latency. These source runs use 2,000 / 200 ms benchmark limits and OpenOrca. A client with a different model or request distribution needs a matching benchmark.'
+                      : `Your scenario target is ${fmt(scenario.targetTps)} output tokens/s at p99 TTFT ${fmt(scenario.ttftMs)} ms and TPOT ${fmt(scenario.tpotMs)} ms. These source runs use 2,000 / 200 ms limits and OpenOrca; their results do not automatically apply to this scenario.`
                     : 'Offline throughput measures a different serving situation. Do not use an offline bar to promise interactive response times.'}
                 </p>
               </div>

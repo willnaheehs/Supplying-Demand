@@ -15,6 +15,7 @@ export type ClusterRecord = {
   name: string;
   operator: string;
   kind: 'Production disclosure' | 'Benchmark submission' | 'Network experiment';
+  workloadKind: 'inference' | 'training' | 'network' | 'unspecified';
   date: string;
   gpu: string;
   gpuCount: number | null;
@@ -43,13 +44,14 @@ export const benchmarks = snapshot;
 export const clusterRecords: ClusterRecord[] = [
   {
     id: 'meta-roce',
+    workloadKind: 'training',
     description: {
       hardware:
         'Meta’s March 2024 cluster contains 24,576 H100 GPUs in Grand Teton servers. A RoCE Ethernet fabric connects 400 Gb/s endpoints using Arista 7800, Wedge400 and Minipack2 switches. Tectonic and Hammerspace NFS storage run on YV3 Sierra Point servers with E1.S SSDs.',
       result:
         'Meta reported training Llama 3 on this system without network bottlenecks after jointly engineering its network, software and model. The disclosure does not give training tokens per second.',
       meaning:
-        'For a consultant, this establishes that H100 with RoCE can support large-model training. It does not establish a client’s required server count or storage throughput; those need workload measurements.',
+        'This is a training example, not an inference benchmark. GPUs perform the model calculations; RoCE carries exchanges between training workers; storage feeds data and saves checkpoints. Meta also tuned placement, routing and the communication software. The result supports that complete approach, not a claim that H100 or RoCE alone determines performance.',
     },
     name: 'Meta · RoCE cluster',
     operator: 'Meta',
@@ -99,6 +101,7 @@ export const clusterRecords: ClusterRecord[] = [
   },
   {
     id: 'meta-ib',
+    workloadKind: 'training',
     description: {
       hardware:
         'This companion cluster has 24,576 H100 GPUs in Grand Teton servers, Quantum-2 InfiniBand connecting 400 Gb/s endpoints, and the same published Tectonic/Hammerspace storage approach.',
@@ -145,6 +148,7 @@ export const clusterRecords: ClusterRecord[] = [
   },
   {
     id: 'deepseek',
+    workloadKind: 'training',
     description: {
       hardware:
         'DeepSeek-V3 trained on 2,048 H800 GPUs, with eight GPUs per server: 256 servers by calculation. NVLink and NVSwitch connect GPUs within each server; InfiniBand connects servers. The report does not provide a complete CPU, RAM, storage or north–south network configuration.',
@@ -198,6 +202,7 @@ export const clusterRecords: ClusterRecord[] = [
   },
   {
     id: 'meta-129k',
+    workloadKind: 'unspecified',
     description: {
       hardware:
         'Meta reported assembling one cluster of roughly 129,000 H100 GPUs across five data-center buildings. This disclosure does not specify its server count, per-server CPU or RAM, exact network topology, or storage configuration.',
@@ -239,12 +244,14 @@ export const clusterRecords: ClusterRecord[] = [
       },
     ],
   },
-  ...(['H100', 'B300'] as const).map((gpu) => {
-    const b = benchmarks.find((x) => x.gpu === gpu && x.scenario === 'Server')!;
+  ...benchmarks.map((b) => {
+    const gpu = b.gpu;
+    const online = b.scenario === 'Server';
     const s = b.systemMetadata;
     return {
-      id: 'mlperf-' + gpu.toLowerCase(),
-      name: `MLPerf · 8 × ${gpu}`,
+      id: 'mlperf-' + gpu.toLowerCase() + (online ? '' : '-offline'),
+      name: `MLPerf · 8 × ${gpu}${online ? '' : ' · batch'}`,
+      workloadKind: 'inference' as const,
       operator: 'NVIDIA submission',
       kind: 'Benchmark submission' as const,
       date: b.published,
@@ -252,20 +259,21 @@ export const clusterRecords: ClusterRecord[] = [
       gpuCount: 8,
       nodeCount: 1,
       fabric: 'Single-node run · external fabric effect not isolated',
-      model: 'Llama 2 70B · Server',
+      model: `Llama 2 70B · ${online ? 'interactive inference' : 'batch inference'}`,
       outcome: `${b.tokensPerSecond.toLocaleString('en-US')} output tokens/s in the submitted test.`,
       outcomeValue: b.tokensPerSecond.toLocaleString('en-US') + ' tokens/s',
-      scope: `${b.version} closed division · ${b.precision.toUpperCase()} weights · OpenOrca · 2,000 ms TTFT / 200 ms TPOT limits. A benchmark system is not a production client deployment.`,
+      scope: `${b.version} closed division · ${b.precision.toUpperCase()} weights · OpenOrca · ${online ? '2,000 ms first-token / 200 ms per-token limits' : 'Offline batch; no interactive latency target'}. The measured rate applies to this test. A different model, request pattern or software setup needs another benchmark.`,
       source: b.sourceUrl,
       lesson:
         'Keep model, precision, software, request distribution and latency targets attached to every performance number.',
       benchmarkId: b.id,
       description: {
-        hardware: `This NVIDIA benchmark used one server with eight ${gpu} GPUs, each listed with ${s.accelerator_memory_capacity} of GPU memory. Its submitted configuration lists ${s.host_processors_per_node} ${s.host_processor_model_name} CPUs, ${s.host_memory_capacity} of host RAM, and ${s.host_storage_capacity} of storage. The GPUs communicate locally over NVLink. The NIC inventory is listed as “${s.host_network_card_count}”; this one-server run does not isolate an external fabric’s contribution.`,
-        result: `It served Llama 2 70B using ${b.precision.toUpperCase()} weights in MLPerf Inference ${b.version} with the OpenOrca dataset. The measured result was ${b.tokensPerSecond.toLocaleString('en-US')} output tokens per second across the system. The 99th-percentile time to the first token was ${Math.round(b.ttftP99Ms || 0).toLocaleString('en-US')} ms; time per subsequent output token was ${Math.round(b.tpotP99Ms || 0)} ms. The benchmark limits were 2,000 ms and 200 ms respectively.`,
-        meaning: `For a consultant, this is a measured throughput-and-latency reference for these exact test conditions. It does not promise the same rate for a different model, context length or service target. The H100 and B300 records also use different precision and software, so their difference cannot be attributed to the GPU alone.${gpu === 'B300' ? ' The submitted 270 GB memory figure is retained here; the reference palette separately uses the nominal 288 GB specification.' : ''}`,
+        hardware: `This NVIDIA benchmark used one server with eight ${gpu} GPUs, each listed with ${s.accelerator_memory_capacity} of GPU memory. Its submitted configuration lists ${s.host_processors_per_node} ${s.host_processor_model_name} CPUs, ${s.host_memory_capacity} of host RAM, and ${s.host_storage_capacity} of storage. The server provides local NVLink connections between GPUs. The NIC inventory is listed as “${s.host_network_card_count}”; this one-server run does not isolate an external fabric’s contribution.`,
+        result: `It served Llama 2 70B using ${b.precision.toUpperCase()} weights in MLPerf Inference ${b.version} with the OpenOrca dataset. The measured result was ${b.tokensPerSecond.toLocaleString('en-US')} output tokens per second across the system. ${online ? `The 99th-percentile time to the first token was ${Math.round(b.ttftP99Ms || 0).toLocaleString('en-US')} ms; time per subsequent output token was ${Math.round(b.tpotP99Ms || 0)} ms. The benchmark limits were 2,000 ms and 200 ms respectively.` : 'This is an Offline batch result. It does not establish interactive response times.'}`,
+        meaning: `This is a measured ${online ? 'throughput-and-latency' : 'batch-throughput'} reference for these exact test conditions. It does not promise the same rate for a different model, context length or service target. The H100 and B300 records also use different precision and software, so their difference cannot be attributed to the GPU alone.${gpu === 'B300' ? ' The submitted 270 GB memory figure is retained here; the reference palette separately uses the nominal 288 GB specification.' : ''}`,
       },
       facts: [
+        { label: 'Parallelism / batching', value: null, source: b.sourceUrl },
         {
           label: 'GPU memory',
           value: `8 × ${s.accelerator_memory_capacity} (submission metadata)`,
@@ -294,7 +302,9 @@ export const clusterRecords: ClusterRecord[] = [
         },
         {
           label: 'p99 first token / output token',
-          value: `${b.ttftP99Ms} ms / ${b.tpotP99Ms} ms`,
+          value: online
+            ? `${b.ttftP99Ms} ms / ${b.tpotP99Ms} ms`
+            : 'Not an interactive test; no latency target',
           source: b.sourceUrl,
         },
       ],
@@ -302,6 +312,7 @@ export const clusterRecords: ClusterRecord[] = [
   }),
   {
     id: 'metaroce-2026',
+    workloadKind: 'network',
     description: {
       hardware:
         'Meta and AMD tested a 64-node AMD GPU cluster with Pensando programmable network cards. The experiment compared MetaRoCE with RoCEv2 for GPU communication; the GPU model, CPU, RAM and storage configuration are not specified.',
