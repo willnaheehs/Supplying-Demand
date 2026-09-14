@@ -1,4 +1,4 @@
-# supplying demand
+# Supplying Demand
 
 A single-page consulting tool for matching startup workloads to data-center cluster offers, built around an always-visible educational hardware map. Inspect dated public cluster disclosures, make a hardware variant, and connect workload behavior to GPU servers, host resources, backend topology, north–south traffic and storage requirements.
 

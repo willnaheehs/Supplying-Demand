@@ -530,7 +530,7 @@ export default function ClusterLab() {
       <header className="lab-nav">
         <a href="/" className="lab-brand">
           <ArrowLeftRight size={21} />
-          supplying demand
+          Supplying Demand
         </a>
         <span className="one-page-label">Cluster lab</span>
         <div className="lab-nav-actions">

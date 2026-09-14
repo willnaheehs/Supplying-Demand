@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'supplying demand — ai infrastructure consulting',
+  title: 'Supplying Demand — AI Infrastructure Consulting',
   description: 'Learn through client cases, assess infrastructure requirements, and match available GPU capacity to suitable workloads.',
 };
 
