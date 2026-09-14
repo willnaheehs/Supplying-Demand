@@ -1686,3 +1686,55 @@
     line-height: 1.7;
   }
 }
+
+.lab-toolbar {
+  scroll-margin-top: 24px;
+}
+.cluster-app .advanced-comparison {
+  padding: 0;
+  margin: 16px 0 0;
+  border: 1px solid #cfdddf;
+  border-radius: 9px;
+  background: #fff;
+}
+.cluster-app .advanced-comparison > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px;
+  color: #385762;
+  cursor: pointer;
+  list-style: none;
+}
+.advanced-comparison > summary::-webkit-details-marker {
+  display: none;
+}
+.advanced-comparison > summary > span {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+.advanced-comparison > summary > small {
+  margin-left: auto;
+  color: #768b93;
+  font-weight: 400;
+}
+.advanced-comparison > summary > svg {
+  flex-shrink: 0;
+}
+.advanced-comparison[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.advanced-comparison > .matching-desk {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #cfdddf;
+  border-radius: 0 0 9px 9px;
+}
+@media (max-width: 800px) {
+  .advanced-comparison > summary > small {
+    display: none;
+  }
+  .advanced-comparison > summary > svg {
+    margin-left: auto;
+  }
+}

@@ -443,22 +443,6 @@
 .md-message button {
   font-size: 22px;
 }
-.evidence-lab {
-  padding: 0 !important;
-  margin: 0 !important;
-  border-top: 0 !important;
-}
-.evidence-lab > summary {
-  font-size: 1rem;
-  color: #55776c;
-  padding: 15px 0 20px;
-}
-.evidence-lab > summary > span {
-  font-size: 0.8125rem;
-  font-weight: 400;
-  color: #839b9d;
-  margin-left: auto;
-}
 .md-provider .md-pair {
   gap: 10px;
 }
@@ -578,13 +562,6 @@
   }
   .md-column-title > button {
     font-size: 0.8125rem;
-  }
-  .evidence-lab > summary {
-    flex-wrap: wrap;
-  }
-  .evidence-lab > summary > span {
-    margin-left: 20px;
-    width: 100%;
   }
   .md-verdict {
     padding: 16px;

@@ -541,7 +541,7 @@ export default function MatchingDesk({
                 onClick={() => onOpenLab(asScenario(demand, offer), offer.name)}
                 disabled={demand.architecture === 'moe'}
               >
-                Inspect a copy in the visual sandbox
+                Explore a copy on the map
                 <ArrowRight size={15} />
               </button>
               <button onClick={exportBrief}>
