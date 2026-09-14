@@ -6,9 +6,10 @@ A single-page consulting tool for matching startup workloads to data-center clus
 - Start with interactive inference, batch inference or training. Choose a model and numeric targets to find matching evidence. Inference matches retain exact benchmark scenario, precision, software and request distribution; training disclosures are labeled reported, not measured client recommendations. Missing evidence never becomes an invented configuration.
 - Drag or click reference components onto the map. Select a component to explain or configure it in the adjacent inspector.
 - Follow prompt processing, token generation, training, checkpoint and model-loading paths.
-- Explore seven published systems and experiments through nine records (including separate Server and Offline submissions), including Meta H100/RoCE training, DeepSeek-V3, and H100/B300 MLPerf submissions. Unknown configuration fields remain unknown.
-- Inspect four pinned MLPerf runs, including their model, precision, software, system metadata, publication date and latency constraints.
-- Export/import version 2 scenario JSON, or download a Markdown qualification memo. Data stays in page memory until exported. No API keys or model calls are needed.
+- Search a sourced database of **677 workload observations, 228 system/configuration identifiers and 46 model/workload labels**. The initial sample includes 540 valid inference runs, 119 successful training trials and 18 operator/research observations. These are observations, not 677 distinct physical clusters.
+- Select a database observation to map its accelerators, CPU/RAM, within-node links, network topology, local/shared storage, storage servers and frontend. Click a component for its role, disclosed details and client verification questions. Unknown fields remain unknown. Each outcome retains source links, units and conditions.
+- Add and edit your own sourced observations. They persist in platform D1 and are private to the signed-in account; user-entered claims are explicitly unverified. Export the catalog, including your additions, as JSON. Published seed records stay read-only in the UI.
+- The original guided sandbox retains four pinned MLPerf examples plus the original cluster disclosures. It supports scenario JSON and Markdown exports; sandbox scenarios and offer comparisons still stay in page memory until exported. The growing catalog and the smaller guided example set are labeled separately. No model API key is needed.
 
 ## Matching workflow
 
@@ -30,6 +31,7 @@ Node 24 recommended.
 
 ```sh
 npm install
+npm run db:local
 npm run dev
 npm test
 npx tsc --noEmit
@@ -38,7 +40,19 @@ npm run build
 
 The root page renders `components/cluster-lab.tsx`, with the optional detailed comparison in `components/matching-desk.tsx` and comparison logic in `lib/matching.ts`. Domain calculations and validation live in `lib/cluster-lab.ts`; curated disclosures are in `lib/cluster-evidence.ts`. The preceding guided workbench remains in source for reference but is no longer part of the page.
 
+The growing library is `components/cluster-catalog.tsx`; record types, validation and filtering are in `lib/catalog.ts`. `/api/catalog` serves the combined catalog and saves manual entries using prepared D1 statements in `db/catalog-store.ts`. The platform forwards signed-in identity; anonymous production requests are rejected. Writes require same-origin JSON. Manual records are owner-scoped, while source snapshots are shared with authenticated viewers. Database responses are not cacheable. Local development uses Sites' local identity, or a development-only localhost fallback.
+
+`db/schema.ts` is the schema source of truth; `npx drizzle-kit generate` creates schema-only migrations in `drizzle/`. Applied production migrations must remain immutable. Sites applies them before publishing. `npm run db:local` applies unapplied migrations to the project-local preview database; it does not access production. Seed import is idempotent, revisioned, and never overwrites manual records. The next snapshot can retire withdrawn seed observations. Back up manual data with the catalog Export button; it is not committed to the public Git repository.
+
 ## Evidence and refresh
+
+`python3 scripts/refresh-catalog.py` rebuilds `data/cluster-catalog.json` and `data/catalog-manifest.json` from six pinned MLCommons repositories (Inference and Training v5.0, v5.1 and v6.0), plus `data/cluster-deployments.json`. It uses only Python's standard library and public sources. A cache defaults to `/tmp/sd-catalog-research`; use `--cache PATH` to choose another. Changing a pin requires review of the resulting data and manifest. Keep operator/research additions in `cluster-deployments.json` so refresh preserves them.
+
+The sample takes up to 180 inference configurations and 40 training `result_0` trials per release, round-robin by submitter then model/scenario, independent of performance. Inference requires a closed datacenter submission, compliance flag, no summary errors, unique result path, retrievable system metadata and a raw `VALID` performance log. Power variants are excluded. Training requires a closed submission with `run_start` and a successful `run_stop`; its metric is elapsed trial minutes, **not the official aggregate MLPerf result** and not complete model pretraining time. Exclusions and repository revisions are recorded in the manifest. System identities group submitter/platform identifiers; they are not verified physical-machine identities, and counts must not be summed across observations.
+
+Operator and author sources include Meta engineering reports, DeepSeek-V3, BLOOM, Falcon, Poro, PaLM, DBRX, Llama 3 scaling, TorchTitan, context-parallel inference and NVIDIA's Colossus deployment report. Some have numeric outcomes; others only substantiate reported use. They do not establish current rental availability. Networking metadata can mix roles; the importer never invents a backend/frontend split, spine count or shared-storage system. Counts derived from nodes × accelerators/node are labeled; conflicting count labels remain unknown. Benchmark units and model/scenario identities are preserved. Precision, software, prompt distribution, latency requirements and quality targets can differ, including across MLPerf versions. Equal units do not establish comparable results.
+
+The application does not predict performance for changed hardware. Database observations show the original measured/reported configuration, while the sandbox performs explicit capacity arithmetic. Published outcomes are not transferred to arbitrary variants.
 
 `scripts/refresh-evidence.py` retrieves official MLCommons summary files, system metadata and valid performance logs from pinned Git revisions. Run `python3 scripts/refresh-evidence.py` to regenerate `data/mlperf-snapshot.json`. Updating versions requires reviewing the submissions and editing the selected source definitions. The snapshots are reviewed as of September 12, 2026; they are not live telemetry or available-for-sale inventory.
 

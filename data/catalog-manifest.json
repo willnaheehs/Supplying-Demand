@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-09-14",
+  "revision": "0e305cadc8760b46eb",
+  "recordCount": 677,
+  "systemCount": 228,
+  "operators": 52,
+  "kinds": {
+    "benchmark": 540,
+    "deployment": 9,
+    "research": 9,
+    "training-trial": 119
+  },
+  "repositories": [
+    {
+      "repository": "inference_results_v5.0",
+      "revision": "0bc17ab3f4b33f730d7869e04cc29cb70835e513",
+      "eligible": 838,
+      "selected": 180,
+      "included": 180,
+      "excluded": []
+    },
+    {
+      "repository": "inference_results_v5.1",
+      "revision": "5ea4f62ef62536e6bf4d78a9b440fb9035ddfb4a",
+      "eligible": 542,
+      "selected": 180,
+      "included": 180,
+      "excluded": []
+    },
+    {
+      "repository": "inference_results_v6.0",
+      "revision": "4d3916ac9cf474b679cdfcf492d43a0559418ad1",
+      "eligible": 444,
+      "selected": 180,
+      "included": 180,
+      "excluded": []
+    },
+    {
+      "repository": "training_results_v5.0",
+      "revision": "d7e703fccc1c86e70cb31bac108f99072e34dba0",
+      "eligible": 132,
+      "selected": 40,
+      "included": 40,
+      "excluded": []
+    },
+    {
+      "repository": "training_results_v5.1",
+      "revision": "441d65f4445cd59687466533fd9f55399136e7a4",
+      "eligible": 136,
+      "selected": 40,
+      "included": 39,
+      "excluded": [
+        {
+          "path": "Dell/results/1xXE7745x8RTXPro6000-PCIe-96GB/retinanet/result_0.txt",
+          "reason": "'utf-8' codec can't decode bytes in position 32289-32290: invalid continuation byte"
+        }
+      ]
+    },
+    {
+      "repository": "training_results_v6.0",
+      "revision": "eabf23a07b2a0c60a289ff871dc3a46fff0d0421",
+      "eligible": 141,
+      "selected": 40,
+      "included": 40,
+      "excluded": []
+    }
+  ],
+  "method": "Up to 180 inference records and 40 result_0 training trials per pinned release. Deterministic round-robin by submitter, then model/scenario; selection does not use performance. Inference: closed datacenter, errors=0, compliance present, no power variants, unique result path, raw log VALID. Training: closed division and run_stop=success. Missing logs/metadata are excluded. Operator/research entries are curated separately.",
+  "counting": "Records are workload observations. Systems group submitter + platform identifiers across releases; identifiers may describe a configuration, not a unique physical installation. Do not sum accelerator counts across observations. This is a historical evidence sample, not a census or live inventory."
+}
